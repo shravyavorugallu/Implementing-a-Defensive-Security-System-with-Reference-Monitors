@@ -1,127 +1,130 @@
-# Reference_Monitor
+### Lab Project: Implementing a Defensive Security System with Reference Monitors
 
-```markdown
-# Building a Security Layer
+#### Objective
+The goal of this lab is to help you understand security mechanisms by implementing a reference monitor using RepyV2. The reference monitor will act as a security layer that mediates all access to objects by subjects. Specifically, you will design a system that ensures the integrity of files by keeping a backup and verifying the validity of file contents before writing changes.
 
-## Overview
+#### Overview
+In this assignment, a security layer is created that ensures files are written correctly by checking if they start with 'S' and end with 'E'. If a file is invalid (i.e., it does not meet these criteria), the security layer will prevent it from being saved and revert to the backup file. This is especially useful in scenarios like firmware upgrades where incorrect writes can cause system failures.
 
-This assignment will guide you through the process of creating a reference monitor using the security layer functionality in Repy V2. A reference monitor is an access control concept that mediates all access to objects by subjects. It can be used to allow, deny, or modify the behavior of calls made by a program.
+#### Requirements
+1. **Reference Monitor Functionality**:
+   - When a file is opened using `ABopenfile()`, the reference monitor creates two copies of the file:
+     - `filename.a` (the backup file)
+     - `filename.b` (the file to be written to)
+   - The reference monitor should verify that the file starts with 'S' and ends with 'E' when `close()` is called.
+   - If the file is valid, the contents of `filename.b` will replace the original file.
+   - If the file is invalid, the original file will retain the contents of `filename.a`.
+   - Both `filename.a` and `filename.b` should be deleted after the operation, leaving only the original file.
 
-In this assignment, an attacker attempts to write "MZ" to the first two characters of a file. Your goal is to prevent this attack by ensuring that "MZ" cannot be written to the start of any file. You'll do this by adding security rules to the functions available for reading and writing files.
+2. **Security Constraints**:
+   - The security layer should not modify or disable any of the RepyV2 API calls.
+   - It should only prevent certain actions (invalid writes), while allowing other operations to proceed as normal.
+   - The security layer should be efficient, using minimal resources and not storing unnecessary data in memory.
 
-Three design paradigms are at work in this assignment:
+3. **File Validity**:
+   - Files are considered valid if they start with 'S' and end with 'E'.
+   - Any other characters (including lowercase 's', 'e', etc.) in the first or last position will make the file invalid.
 
-- **Accuracy**: The security layer should block only specific actions, such as writing "MZ" to the beginning of a file, while allowing other actions (e.g., writing "MX", "ZM") to proceed without interruption.
-- **Efficiency**: The security layer should be resource-efficient to avoid performance degradation.
-- **Security**: The security layer should be robust enough that an attacker cannot bypass it.
+4. **Test Cases**:
+   - You will create test cases to ensure the reference monitor behaves correctly under various conditions and attacks.
+   - The security layer should pass these tests without errors or unexpected outputs.
 
-## Getting Started
+#### Steps to Implement
 
-### Prerequisites
+1. **Setup RepyV2**:
+   - Build RepyV2 according to the SeattleTestbed Build Instructions.
+   - Ensure you have Python 2.7 and RepyV2 installed correctly.
 
-- **Python**: You need Python 2.6 or 2.7. Instructions for installing Python on Windows can be found [here](https://www.python.org/downloads/release/python-2718/). If you're using Linux or macOS, Python should already be installed. Verify the version by running `python --version` in your terminal.
-- **Repy V2**: You will need to install Repy V2, which is the runtime for building the security layer. Follow the instructions below to install Repy V2 from source.
+2. **Create the Security Layer**:
+   - Implement the `ABFile` class to handle file operations, including creating backup files, writing to the file, and reading from the backup file.
+   - Implement the `ABopenfile()` function to return an instance of `ABFile`.
+   - Ensure that `close()` checks the validity of the file contents before replacing the original file.
 
-### Installing Repy V2
+3. **Test the Reference Monitor**:
+   - Create test cases to verify that the security layer correctly handles valid and invalid file writes.
+   - Test edge cases where the file contents are almost valid (e.g., 's' at the beginning or 'e' at the end).
 
-1. Create a directory for the required Git repositories:
-    ```bash
-    mkdir SeattleTestbed
-    cd SeattleTestbed
-    ```
+4. **Penetration Testing**:
+   - As an attacker, attempt to bypass the security layer by writing invalid data to the file or accessing the backup file directly.
+   - Ensure that the security layer prevents such attacks.
 
-2. Clone the Repy V2 repository:
-    ```bash
-    git clone https://github.com/SeattleTestbed/repy_v2.git
-    ```
-
-3. Build Repy V2:
-    ```bash
-    cd repy_v2/scripts
-    mkdir ~/path/to/build/dir
-    python initialize.py
-    python build.py ~/path/to/build/dir
-    ```
-
-4. Your build directory will contain the Repy V2 runtime, including `repy.py`, `restrictions.default`, and `encasementlib.r2py`.
-
-### Running Repy Files
-
-To run Repy files, use the following command:
-```bash
-python repy.py restrictions.default encasementlib.r2py [security_layer].r2py [program].r2py
-```
-
-Make sure the Repy files end with `.r2py`.
-
-## Building the Security Layer
-
-### Creating a Basic Security Layer
-
-A basic security layer intercepts file operations and checks whether the first two characters written to a file are "MZ". If they are, the security layer raises an exception to prevent the write operation.
+#### Example Code for Reference Monitor
 
 ```python
-class SecureFile():
-    def __init__(self, privilegedfo):
-        self.privilegedfo = privilegedfo
+class ABFile():
+    def __init__(self, filename, create):
+        self.Afn = filename + '.a'
+        self.Bfn = filename + '.b'
 
-    def readat(self, bytes, offset):
-        return self.privilegedfo.readat(bytes, offset)
+        # Create files if needed
+        if create:
+            self.Afile = openfile(self.Afn, create)
+            self.Bfile = openfile(self.Bfn, create)
+            self.Afile.writeat('SE', 0)
 
     def writeat(self, data, offset):
-        if data.startswith("MZ") and offset == 0:
-            raise ValueError("Cannot start file with MZ!")
-        return self.privilegedfo.writeat(data, offset)
+        # Write to the B file
+        self.Bfile.writeat(data, offset)
+
+    def readat(self, bytes, offset):
+        # Read from the A file (backup)
+        return self.Afile.readat(bytes, offset)
 
     def close(self):
-        return self.privilegedfo.close()
+        # Validate the file and replace the original if valid
+        if self.is_valid(self.Bfile):
+            self.Afile.writeat(self.Bfile.readat(0, 0), 0)  # Replace original with B
+        else:
+            self.Afile.writeat(self.Afile.readat(0, 0), 0)  # Revert to backup
+        self.Afile.close()
+        self.Bfile.close()
 
-def secure_openfile(filename, create):
-    privilegedfo = openfile(filename, create)
-    return SecureFile(privilegedfo)
+    def is_valid(self, file):
+        # Check if the file starts with 'S' and ends with 'E'
+        content = file.readat(2, 0)
+        return content[0] == 'S' and content[-1] == 'E'
+
+def ABopenfile(filename, create):
+    return ABFile(filename, create)
 ```
 
-### Testing the Security Layer
-
-You will test your security layer by simulating an attacker trying to write "MZ" to a file. The attack should raise a `ValueError` if the security layer is working correctly.
+#### Example Test Case
 
 ```python
-# Open a file
-myfile = openfile("look.txt", True)
+# Test Case 1: New File Operation
 
-# Attempt to write "MZ" to the file
-try:
-    myfile.writeat("MZ", 0)
-except ValueError:
-    log("The security layer correctly blocked the write!!!")
-else:
-    log("Wrote an MZ!!!")
+# Clean up existing files
+if "testfile.txt.a" in listfiles():
+    removefile("testfile.txt.a")
+if "testfile.txt.b" in listfiles():
+    removefile("testfile.txt.b")
 
-finally:
-    # Close the file after our attempt.
-    myfile.close()
+# Open the file
+myfile = ABopenfile("testfile.txt", True)  # Create an AB file
+
+# Assert that the new file is valid ('SE')
+assert 'SE' == myfile.readat(2, 0)
+
+# Write valid data to the file
+myfile.writeat("Stest12345E", 0)
+
+# Assert that the file is still valid before closing
+assert 'SE' == myfile.readat(2, 0)
+
+# Close the file
+myfile.close()
 ```
 
-### Code Analysis
+#### Running the Security Layer
 
-The `writeat()` function in the `SecureFile` class checks if the data starts with "MZ" and if the offset is 0 (indicating the start of the file). If both conditions are met, it raises an exception to block the write. This approach follows the design principles of accuracy (only blocking "MZ"), efficiency (minimal resource usage), and security (blocking the attack).
+To run the security layer and test it, use the following command:
 
-### Running the Security Layer
-
-To run your security layer with an attack program, use the following command:
 ```bash
 python repy.py restrictions.default encasementlib.r2py [security_layer].r2py [attack_program].r2py
 ```
 
-- Turn in the Repy file for your reference monitor: `reference_monitor_[name_or_id].r2py`.
+#### Deliverables
 
-## Notes and Resources
-
-- [Python Tutorial](https://docs.python.org/tutorial/)
-- [Repy V2 API](https://seattle.poly.edu/wiki/RepyV2API)
-- [Security Layer Tutorial](https://seattle.poly.edu/wiki/RepyV2SecurityLayers)
-- [Thread Safety](http://en.wikipedia.org/wiki/Thread_safety)
-
-```
-
-This `README.md` provides a detailed guide for setting up and building the security layer for this assignment, as well as instructions for testing and submitting the work.
+1. **Security Layer**: Submit the RepyV2 file `reference_monitor_[netid].r2py`.
+2. **Test Cases**: Submit a zip file containing all the test cases you have created.
+3. **Documentation**: Provide a brief explanation of your approach and any challenges you faced while implementing the reference monitor and testing it.
