@@ -113,14 +113,7 @@ To run your security layer with an attack program, use the following command:
 python repy.py restrictions.default encasementlib.r2py [security_layer].r2py [attack_program].r2py
 ```
 
-## Extra Credit
-
-For extra credit, implement a second security layer that prevents an attacker from writing the string "p0wnd" anywhere in a file. This will require handling the case where the string appears at any offset, not just at the beginning of the file.
-
-### Submitting Your Work
-
 - Turn in the Repy file for your reference monitor: `reference_monitor_[name_or_id].r2py`.
-- For extra credit, submit the second Repy file: `extra_credit_[name_or_id].r2py`.
 
 ## Notes and Resources
 
