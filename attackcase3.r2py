@@ -1,0 +1,23 @@
+
+# Attack Scenario 3 - Read with Higher Value of Bytes
+
+
+# Remove existing Files
+if "testfile.txt.a" in listfiles():
+  removefile("testfile.txt.a")
+if "testfile.txt.b" in listfiles():
+  removefile("testfile.txt.b")
+
+# Open File
+myfile=ABopenfile("testfile.txt",True)  #Create an AB file
+
+
+# Read data from the file
+
+myfile.readat(None,0)
+myfile.readat(100,0)
+myfile.readat(None,100)
+myfile.readat(None,-100)
+
+
+myfile.close()

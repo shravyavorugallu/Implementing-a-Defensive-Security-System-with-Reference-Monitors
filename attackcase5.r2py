@@ -1,0 +1,29 @@
+
+# Attack Scenario 5- Altering the file
+
+
+
+#REMOVE Operation
+if "testfile.txt.a" in listfiles():
+  removefile("testfile.txt.a")
+if "testfile.txt.b" in listfiles():
+  removefile("testfile.txt.b")
+
+# New File Operation
+myfile=ABopenfile("testfile.txt", True)
+
+def threadone():
+  #WRITE Operation
+  myfile.writeat("StestE",0)
+
+def threadtwo():
+  #WRITE Operation
+  myfile.writeat("StestEsecurityE",0)
+
+createthread(threadone)
+createthread(threadtwo)
+myfile.close()
+
+myfile=ABopenfile("testfile.txt", True)
+assert(myfile.readat(None,0) == "StestEsecurityE")
+myfile.close()
